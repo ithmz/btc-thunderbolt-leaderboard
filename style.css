@@ -1,4 +1,3 @@
-
 @font-face {
     font-family: 'Space Grotesk';
     src: url("SpaceGrotesk-VariableFont_wght.ttf") format("truetype-variations");
@@ -48,7 +47,7 @@ main {
     flex-direction: column;
     justify-content: flex-start;
     align-items: center;
-    flex: 1;
+    flex: 1; 
     padding: 40px 20px 20px 20px;
     box-sizing: border-box;
 }
@@ -187,15 +186,19 @@ main {
 }
 
 .searched-address-display {
-    font-size: 0.875em;
-    font-weight: 400;
+    font-size: 0.875em; 
     color: #555;
     margin-bottom: 15px;
     padding-bottom: 10px;
     border-bottom: 1px solid #eee;
+
 }
 .searched-address-display .label {
-    font-weight: 600;
+    font-weight: 600; 
+}
+
+.searched-address-display {
+    word-break: break-all; /* Allow long address to break */
 }
 
 footer {
@@ -283,6 +286,10 @@ footer {
         font-size: 0.95em;
     }
 
+    .searched-address-display {
+        font-size: 0.85em;
+    }
+
     footer {
         padding: 15px 20px; 
     }
@@ -330,6 +337,12 @@ footer {
     .rank-block .rank-value.not-ranked {
         font-size: 1em;
     }
+
+    .searched-address-display {
+        font-size: 0.8em;
+        line-height: 1.4;
+    }
+
     .support-message {
         font-size: 0.7em;
     }

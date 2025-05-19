@@ -7,6 +7,23 @@ let weeklyTransactionStats = null;
 let isFetchingApiData = false;
 let isFetchingActiveUserCount = false;
 
+// --- Total Transaction Reward Tiers Definition ---
+const transactionRewardTiers = [ // Renamed for clarity
+    { threshold: 1000, name: "@Spark role on Discord" },
+    { threshold: 10000, name: "@Pulse role on Discord" },
+    { threshold: 100000, name: "@Storm role on Discord" }
+];
+
+// --- Weekly Rank Prize Rewards Definition (NEW) ---
+const weeklyRankPrizes = [
+    { rank: 1, reward: "🥇 $50 + @Speed Master role" },
+    { rank: 2, reward: "🥈 $25" },
+    { rank: 3, reward: "🥉 $10" },
+    { rankMin: 4, rankMax: 10, reward: "$3 each" }
+    // Ranks beyond 10 do not get a specific prize from this list
+];
+
+
 function formatDateForAPI(dateObj) {
     const year = dateObj.getUTCFullYear();
     const month = String(dateObj.getUTCMonth() + 1).padStart(2, '0');
@@ -106,7 +123,7 @@ async function triggerFullDataFetchOnSearch() {
         const weeklyFromDateObj = new Date(nowUTC.getTime() - (7 * 24 * 60 * 60 * 1000));
         const weeklyFromDateTimeUTC = formatDateForAPI(weeklyFromDateObj);
         weeklyTransactionStats = await fetchTransactionSpeedData(weeklyFromDateTimeUTC, weeklyToDateTimeUTC, dynamicCount, 'Weekly');
-        
+
         return true;
     } catch (error) {
         showStatusMessage(`Error during data fetching: ${error.message}`, resultsContent);
@@ -116,6 +133,29 @@ async function triggerFullDataFetchOnSearch() {
     } finally {
         isFetchingApiData = false;
     }
+}
+
+async function getTotalTransactions(address) {
+  const apiUrl = `https://api.thunderbolt.lt/api/v1/addresses/${address}/transactions`;
+  try {
+    const response = await fetch(apiUrl);
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error(`API Error for total transactions: ${response.status} - ${response.statusText}`);
+      console.error(`Error details: ${errorData}`);
+      throw new Error(`Failed to fetch total transactions. Status: ${response.status}`);
+    }
+    const jsonData = await response.json();
+    if (jsonData && jsonData.data && typeof jsonData.data.total !== 'undefined') {
+      return jsonData.data.total;
+    } else {
+      console.error("Unexpected JSON structure for total transactions. 'data.total' not found.", jsonData);
+      throw new Error("Could not find 'total' in the total transactions response data.");
+    }
+  } catch (error) {
+    console.error("An error occurred fetching total transactions:", error.message);
+    throw error;
+  }
 }
 
 function isBtcAddress(term) {
@@ -135,21 +175,11 @@ function showStatusMessage(message, container = resultsContent) {
     container.appendChild(p);
 }
 
-function displayAddressRanks(searchTerm, dailyRankInfo, weeklyRankInfo) {
-    clearSearchResults();
-
-    const searchedAddressDiv = document.createElement('div');
-    searchedAddressDiv.className = 'searched-address-display';
-    searchedAddressDiv.innerHTML = `<span class="label">Address:</span> ${searchTerm}`;
-    resultsContent.appendChild(searchedAddressDiv);
-
-    const ranksContainer = document.createElement('div');
-    ranksContainer.className = 'ranks-container';
-
+function addRankBlocksToContainer(dailyRankInfo, weeklyRankInfo, container) {
     // Daily Rank Block
     const dailyBlock = document.createElement('div');
     dailyBlock.className = 'rank-block';
-    let dailyRankHTML = `<h5>Daily Rank</h5>`; // (Last 24h UTC)
+    let dailyRankHTML = `<h5>Daily Rank</h5>`;
     if (dailyRankInfo.rank !== "Not Ranked") {
         dailyRankHTML += `<span class="rank-value">${dailyRankInfo.rank}</span>`;
         dailyRankHTML += `<span class="rank-details">out of ${dailyRankInfo.totalRecords} active addresses</span>`;
@@ -158,12 +188,12 @@ function displayAddressRanks(searchTerm, dailyRankInfo, weeklyRankInfo) {
         dailyRankHTML += `<span class="rank-details">(Total daily addresses: ${dailyRankInfo.totalRecords})</span>`;
     }
     dailyBlock.innerHTML = dailyRankHTML;
-    ranksContainer.appendChild(dailyBlock);
+    container.appendChild(dailyBlock);
 
     // Weekly Rank Block
     const weeklyBlock = document.createElement('div');
     weeklyBlock.className = 'rank-block';
-    let weeklyRankHTML = `<h5>Weekly Rank</h5>`; // (Last 7d UTC)
+    let weeklyRankHTML = `<h5>Weekly Rank</h5>`;
     if (weeklyRankInfo.rank !== "Not Ranked") {
         weeklyRankHTML += `<span class="rank-value">${weeklyRankInfo.rank}</span>`;
         weeklyRankHTML += `<span class="rank-details">out of ${weeklyRankInfo.totalRecords} active addresses</span>`;
@@ -172,25 +202,150 @@ function displayAddressRanks(searchTerm, dailyRankInfo, weeklyRankInfo) {
         weeklyRankHTML += `<span class="rank-details">(Total weekly addresses: ${weeklyRankInfo.totalRecords})</span>`;
     }
     weeklyBlock.innerHTML = weeklyRankHTML;
-    ranksContainer.appendChild(weeklyBlock);
-
-    resultsContent.appendChild(ranksContainer);
+    container.appendChild(weeklyBlock);
 }
+
+function displayTransactionRewardsBlock(totalTransactions, containerElement) { // Renamed for clarity
+    if (typeof totalTransactions !== 'number' || !containerElement) {
+        console.error("Invalid input for displayTransactionRewardsBlock");
+        return;
+    }
+
+    const rewardsBlock = document.createElement('div');
+    rewardsBlock.className = 'rank-block transaction-rewards-block'; // Specific class
+
+    let rewardsHTML = `<h5>Total Transaction Rewards</h5>`; // Title updated
+    rewardsHTML += `<p>Your total transactions: <strong>${totalTransactions.toLocaleString()}</strong></p>`;
+    rewardsHTML += `<ul class="rewards-list">`;
+
+    let highestAchievedRoleName = "None";
+    let anyRewardAchieved = false;
+
+    transactionRewardTiers.forEach(tier => { // Using renamed const
+        if (totalTransactions >= tier.threshold) {
+            rewardsHTML += `<li class="reward-item achieved">
+                              <span class="reward-name">${tier.name}</span>
+                              <span class="reward-status">(Unlocked at ${tier.threshold.toLocaleString()} transactions)</span>
+                            </li>`;
+            highestAchievedRoleName = tier.name;
+            anyRewardAchieved = true;
+        } else {
+            const transactionsNeeded = tier.threshold - totalTransactions;
+            rewardsHTML += `<li class="reward-item pending">
+                              <span class="reward-name">${tier.name}</span>
+                              <span class="reward-status">(Requires ${tier.threshold.toLocaleString()} transactions. You need ${transactionsNeeded.toLocaleString()} more)</span>
+                            </li>`;
+        }
+    });
+    rewardsHTML += `</ul>`;
+
+    if (anyRewardAchieved) {
+        rewardsHTML += `<p class="current-reward-summary">Your highest unlocked transaction role: <strong>${highestAchievedRoleName}</strong></p>`;
+    } else if (transactionRewardTiers.length > 0) {
+        rewardsHTML += `<p class="current-reward-summary">Keep transacting to unlock your first Discord role based on total transactions!</p>`;
+    }
+
+    rewardsBlock.innerHTML = rewardsHTML;
+    containerElement.appendChild(rewardsBlock);
+}
+
+async function fetchAndAddTransactionRewardsToContainer(address, containerElement) { // Renamed
+    const tempRewardsStatusDiv = document.createElement('div');
+    tempRewardsStatusDiv.className = 'rank-block rewards-status-loading';
+    tempRewardsStatusDiv.innerHTML = `<h5>Total Transaction Rewards</h5><p>Fetching your transaction rewards...</p>`;
+    containerElement.appendChild(tempRewardsStatusDiv);
+
+    try {
+        const totalUserTransactions = await getTotalTransactions(address);
+        containerElement.removeChild(tempRewardsStatusDiv);
+        displayTransactionRewardsBlock(totalUserTransactions, containerElement); // Call renamed function
+    } catch (error) {
+        console.error("Error fetching total transactions for rewards:", error);
+        tempRewardsStatusDiv.innerHTML = `<h5>Total Transaction Rewards</h5><p class="error-message">Could not load transaction rewards: ${error.message}</p>`;
+    }
+}
+
+// --- Function to display Weekly Rank Prize Rewards (NEW) ---
+function displayWeeklyRankPrizesBlock(userWeeklyRank, totalWeeklyParticipants, containerElement) {
+    if (!containerElement) {
+        console.error("Invalid container for displayWeeklyRankPrizesBlock");
+        return;
+    }
+
+    const weeklyPrizesBlock = document.createElement('div');
+    weeklyPrizesBlock.className = 'rank-block weekly-prize-rewards-block'; // Specific class
+
+    let prizesHTML = `<h5>Weekly Rank Prizes</h5>`;
+
+    if (userWeeklyRank === "Not Ranked" || typeof userWeeklyRank !== 'number' || userWeeklyRank <= 0) {
+        prizesHTML += `<p>You are not currently ranked this week, or your rank is not eligible for prizes. Keep transacting to climb the leaderboard!</p>`;
+        if (totalWeeklyParticipants > 0) {
+             prizesHTML += `<p>(Current weekly participants: ${totalWeeklyParticipants})</p>`;
+        }
+    } else {
+        let earnedPrize = null;
+        for (const prizeTier of weeklyRankPrizes) {
+            if (prizeTier.rank && userWeeklyRank === prizeTier.rank) {
+                earnedPrize = prizeTier.reward;
+                break;
+            }
+            if (prizeTier.rankMin && prizeTier.rankMax && userWeeklyRank >= prizeTier.rankMin && userWeeklyRank <= prizeTier.rankMax) {
+                earnedPrize = prizeTier.reward;
+                break;
+            }
+        }
+
+        if (earnedPrize) {
+            prizesHTML += `<p>Your weekly rank: <strong>${userWeeklyRank}</strong> out of ${totalWeeklyParticipants}</p>`;
+            prizesHTML += `<p class="earned-prize">Congratulations! You've earned: <strong>${earnedPrize}</strong></p>`;
+        } else {
+            prizesHTML += `<p>Your weekly rank: <strong>${userWeeklyRank}</strong> out of ${totalWeeklyParticipants}</p>`;
+            prizesHTML += `<p>You are ranked, but not within the prize tiers for this week. Aim for the top ${weeklyRankPrizes[weeklyRankPrizes.length-1].rankMax || weeklyRankPrizes[weeklyRankPrizes.length-1].rank}!</p>`;
+        }
+
+        prizesHTML += `<h6 style="margin-top:15px;">All Weekly Prize Tiers:</h6>`;
+        prizesHTML += `<ul class="rewards-list">`; // Reusing rewards-list class for consistency
+        weeklyRankPrizes.forEach(tier => {
+            let tierLabel = "";
+            if (tier.rank) {
+                tierLabel = `Rank ${tier.rank}`;
+            } else if (tier.rankMin && tier.rankMax) {
+                tierLabel = `Ranks ${tier.rankMin} - ${tier.rankMax}`;
+            }
+            prizesHTML += `<li class="reward-item ${(earnedPrize && earnedPrize === tier.reward) ? 'achieved' : ''}">
+                             <span class="reward-name">${tierLabel}:</span>
+                             <span class="reward-status" style="display:inline; margin-left: 5px;">${tier.reward}</span>
+                           </li>`;
+        });
+        prizesHTML += `</ul>`;
+    }
+
+    weeklyPrizesBlock.innerHTML = prizesHTML;
+    containerElement.appendChild(weeklyPrizesBlock);
+}
+
 
 async function performSearch() {
     const searchTerm = searchInput.value.trim();
     clearSearchResults();
+
     if (!searchTerm) {
         showStatusMessage('Please enter a BTC address.');
         return;
     }
+
     if (isBtcAddress(searchTerm)) {
         const fetchSuccessful = await triggerFullDataFetchOnSearch();
+
         if (!fetchSuccessful && !isFetchingApiData) {
-            // Error message already shown by triggerFullDataFetchOnSearch or other status
+            if (resultsContent.innerHTML.trim() === '') {
+                 showStatusMessage('Failed to fetch ranking data. Please try again.', resultsContent);
+            }
             return;
         }
-        if (isFetchingApiData) return; // Should be handled by trigger, but safeguard
+        if (isFetchingApiData) return;
+
+        clearSearchResults();
 
         const dailyRankInfo = { rank: "Not Ranked", totalRecords: 0 };
         if (dailyTransactionStats && Array.isArray(dailyTransactionStats)) {
@@ -205,11 +360,30 @@ async function performSearch() {
             const foundWeeklyIndex = weeklyTransactionStats.findIndex(tx => tx.btcAddress && tx.btcAddress.toLowerCase() === searchTerm.toLowerCase());
             if (foundWeeklyIndex !== -1) weeklyRankInfo.rank = foundWeeklyIndex + 1;
         }
-        
-        if (dailyTransactionStats || weeklyTransactionStats) { // If at least one dataset was processed
-            displayAddressRanks(searchTerm, dailyRankInfo, weeklyRankInfo);
+
+        if (dailyTransactionStats || weeklyTransactionStats) {
+            const searchedAddressDiv = document.createElement('div');
+            searchedAddressDiv.className = 'searched-address-display';
+            searchedAddressDiv.innerHTML = `<span class="label">Address:</span> ${searchTerm}`;
+            resultsContent.appendChild(searchedAddressDiv);
+
+            const ranksAndRewardsContainer = document.createElement('div');
+            ranksAndRewardsContainer.className = 'ranks-rewards-container';
+            resultsContent.appendChild(ranksAndRewardsContainer);
+
+            addRankBlocksToContainer(dailyRankInfo, weeklyRankInfo, ranksAndRewardsContainer);
+
+            // Fetch and Add Total Transaction Rewards
+            // This is async, so it will append when ready.
+            // We await it so the weekly rank prizes appear after.
+            await fetchAndAddTransactionRewardsToContainer(searchTerm, ranksAndRewardsContainer);
+
+            // Add Weekly Rank Prize Rewards Block (NEW)
+            // This is synchronous based on already fetched weeklyRankInfo
+            displayWeeklyRankPrizesBlock(weeklyRankInfo.rank, weeklyRankInfo.totalRecords, ranksAndRewardsContainer);
+
         } else if (!isFetchingApiData) {
-            showStatusMessage('Data could not be fetched or is unavailable. Please try again.', resultsContent);
+            showStatusMessage('Ranking data could not be fetched or is unavailable. Please try again.', resultsContent);
         }
     } else {
         showStatusMessage(`"${searchTerm}" is not a valid BTC address format. Please enter a valid BTC address.`);

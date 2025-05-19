@@ -224,6 +224,111 @@ footer {
     word-break: break-all;
 }
 
+.rank-block {
+    border: 1px solid #ccc;
+    padding: 15px;
+    margin-bottom: 15px;
+    border-radius: 8px;
+    background-color: #f9f9f9;
+}
+.rank-block h5 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    color: #333;
+}
+.rank-block h6 {
+    margin-top: 15px;
+    margin-bottom: 5px;
+    color: #444;
+}
+.rank-value {
+    font-size: 2em;
+    font-weight: bold;
+    color: #007bff;
+    display: block;
+}
+.rank-value.not-ranked {
+    color: #777;
+}
+.rank-details {
+    font-size: 0.9em;
+    color: #555;
+}
+.searched-address-display {
+    margin-bottom: 15px;
+    padding: 10px;
+    background-color: #e9ecef;
+    border-radius: 5px;
+    font-size: 1.1em;
+}
+.searched-address-display .label {
+    font-weight: bold;
+}
+.transaction-rewards-block h5 {
+    color: #28a745; /* Green for transaction rewards */
+}
+.weekly-prize-rewards-block h5 {
+    color: #ffc107; /* Gold/Yellow for prize rewards */
+}
+.rewards-list {
+    list-style-type: none;
+    padding-left: 0;
+    margin-top: 5px;
+}
+.reward-item {
+    padding: 8px 0;
+    border-bottom: 1px dashed #eee;
+}
+.reward-item:last-child {
+    border-bottom: none;
+}
+.reward-item .reward-name {
+    font-weight: bold;
+}
+.reward-item .reward-status {
+    font-size: 0.9em;
+    color: #666;
+    /* display: block; /* For transaction rewards */
+    /* margin-left: 5px; /* For transaction rewards */
+}
+/* For weekly rank prizes, reward-status might be inline */
+.weekly-prize-rewards-block .reward-item .reward-status {
+    display: inline;
+    margin-left: 5px;
+}
+
+.reward-item.achieved .reward-name,
+.reward-item.achieved .reward-status {
+    color: #28a745; /* Green for achieved/earned */
+}
+.reward-item.pending .reward-name {
+    color: #dc3545; /* Red for pending/locked transaction rewards */
+}
+.current-reward-summary {
+    margin-top: 10px;
+    font-style: italic;
+    color: #444;
+}
+.earned-prize {
+    font-size: 1.1em;
+    color: #155724; /* Dark green for earned prize text */
+    background-color: #d4edda; /* Light green background */
+    border: 1px solid #c3e6cb;
+    padding: 10px;
+    border-radius: 4px;
+    margin-top: 5px;
+}
+.rewards-status-loading p, .rewards-status-loading .error-message {
+    font-style: italic;
+    color: #555;
+}
+.rewards-status-loading .error-message {
+    color: #c00;
+}
+.status-message {
+    padding: 10px;
+    text-align: center;
+}
 
 @media (max-width: 768px) {
     header {
